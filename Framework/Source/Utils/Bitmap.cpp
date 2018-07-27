@@ -31,6 +31,7 @@
 #include "Utils/Platform/OS.h"
 #include "API/Device.h"
 #include <cstring>
+#include "StringUtils.h"
 
 namespace Falcor
 {
@@ -46,7 +47,8 @@ namespace Falcor
         std::string fullpath;
         if(findFileInDataDirectories(filename, fullpath) == false)
         {
-            return UniqueConstPtr(genError("Can't find the file", filename));
+            msgBox("Error when loading image file " + filename + "\n. Can't find the file");
+            return nullptr;
         }
 
         FREE_IMAGE_FORMAT fifFormat = FIF_UNKNOWN;
@@ -87,7 +89,7 @@ namespace Falcor
         }
 
         uint32_t bpp = FreeImage_GetBPP(pDib);
-		bool rgb32FloatSupported = gpDevice->isRgb32FloatSupported();
+        bool rgb32FloatSupported = gpDevice->isRgb32FloatSupported();
 
         switch(bpp)
         {
@@ -104,8 +106,10 @@ namespace Falcor
             pBmp->mFormat = ResourceFormat::RGB16Float;  // 3xfloat16 HDR format
             break;
         case 32:
-        case 24:
             pBmp->mFormat = ResourceFormat::BGRA8Unorm;
+            break;
+        case 24:
+            pBmp->mFormat = ResourceFormat::BGRX8Unorm;
             break;
         case 16:
             pBmp->mFormat = ResourceFormat::RG8Unorm;
@@ -121,7 +125,7 @@ namespace Falcor
         // Convert the image to RGBX image
         if(bpp == 24)
         {
-			logWarning("Converting 24-bit texture to 32-bit");
+            logWarning("Converting 24-bit texture to 32-bit");
             bpp = 32;
             auto pNew = FreeImage_ConvertTo32Bits(pDib);
             FreeImage_Unload(pDib);
@@ -130,8 +134,8 @@ namespace Falcor
 
         if (!rgb32FloatSupported && bpp == 96)
         {
-			logWarning("Converting 96-bit texture to 128-bit");
-			bpp = 128;
+            logWarning("Converting 96-bit texture to 128-bit");
+            bpp = 128;
             auto pNew = FreeImage_ConvertToRGBAF(pDib);
             FreeImage_Unload(pDib);
             pDib = pNew;
@@ -160,14 +164,18 @@ namespace Falcor
             return FIF_PNG;
         case Bitmap::FileFormat::JpegFile:
             return FIF_JPEG;
+        case Bitmap::FileFormat::TgaFile:
+            return FIF_TARGA;
+        case Bitmap::FileFormat::BmpFile:
+            return FIF_BMP;
         case Bitmap::FileFormat::PfmFile:
             return FIF_PFM;
-		case Bitmap::FileFormat::ExrFile:
-			return FIF_EXR;
+        case Bitmap::FileFormat::ExrFile:
+            return FIF_EXR;
         default:
             should_not_get_here();
         }
-        return FIF_PNG;        
+        return FIF_PNG;
     }
 
     static FREE_IMAGE_TYPE getImageType(uint32_t bytesPerPixel)
@@ -206,7 +214,7 @@ namespace Falcor
 
         //TODO replace this code for swapping channels. Can't use freeimage masks b/c they only care about 16 bpp images
         //issue #74 in gitlab
-        if (resourceFormat == ResourceFormat::RGBA8Uint || resourceFormat == ResourceFormat::RGBA8Snorm || resourceFormat == ResourceFormat::RGBA8UnormSrgb)
+        if (resourceFormat == ResourceFormat::RGBA8Unorm || resourceFormat == ResourceFormat::RGBA8Snorm || resourceFormat == ResourceFormat::RGBA8UnormSrgb)
         {
             for (uint32_t a = 0; a < width*height; a++)
             {
@@ -214,48 +222,14 @@ namespace Falcor
                 pPixel += a;
                 uint8_t* ch = (uint8_t*)pPixel;
                 std::swap(ch[0], ch[2]);
-                ch[3] = 0xff;
+                if (is_set(exportFlags, ExportFlags::ExportAlpha) == false)
+                {
+                    ch[3] = 0xff;
+                }
             }
         }
-        if (fileFormat == Bitmap::FileFormat::PngFile)
-        {
-            pImage = FreeImage_ConvertFromRawBits((BYTE*)pData, width, height, bytesPerPixel * width, bytesPerPixel * 8, FI_RGBA_RED_MASK, FI_RGBA_GREEN_MASK, FI_RGBA_BLUE_MASK, isTopDown);
-            if(is_set(exportFlags, ExportFlags::ExportAlpha) == false)
-            {
-                auto pTemp = pImage;
-                pImage = FreeImage_ConvertTo24Bits(pImage);
-                FreeImage_Unload(pTemp);
-            }
-            flags = PNG_Z_BEST_COMPRESSION;
 
-            if(is_set(exportFlags, ExportFlags::Uncompressed))
-            {
-                flags = PNG_Z_NO_COMPRESSION;
-            }
-
-            if(is_set(exportFlags, ExportFlags::Lossy))
-            {
-                logError("Bitmap::saveImage: PNG does not support lossy compression mode.");
-                return;
-            }
-        }
-        else if (fileFormat == Bitmap::FileFormat::JpegFile)
-        {
-            FIBITMAP* pTemp = FreeImage_ConvertFromRawBits((BYTE*)pData, width, height, bytesPerPixel * width, bytesPerPixel * 8, FI_RGBA_RED_MASK, FI_RGBA_GREEN_MASK, FI_RGBA_BLUE_MASK, isTopDown);
-            pImage = FreeImage_ConvertTo24Bits(pTemp);
-            FreeImage_Unload(pTemp);
-            if(is_set(exportFlags, ExportFlags::Lossy) == false || is_set(exportFlags, ExportFlags::Uncompressed))
-            {
-                flags = JPEG_QUALITYSUPERB | JPEG_SUBSAMPLING_444;
-            }
-
-            if(is_set(exportFlags, ExportFlags::ExportAlpha))
-            {
-                logError("Bitmap::saveImage: JPEG does not support alpha channel.");
-                return;
-            }
-        }
-        else if (fileFormat == Bitmap::FileFormat::PfmFile || fileFormat == Bitmap::FileFormat::ExrFile)
+        if (fileFormat == Bitmap::FileFormat::PfmFile || fileFormat == Bitmap::FileFormat::ExrFile)
         {
             if(bytesPerPixel != 16 && bytesPerPixel != 12)
             {
@@ -321,6 +295,70 @@ namespace Falcor
                 {
                     flags |= EXR_B44 | EXR_ZIP;
                 }
+            }
+        }
+        else
+        {
+            FIBITMAP* pTemp = FreeImage_ConvertFromRawBits((BYTE*)pData, width, height, bytesPerPixel * width, bytesPerPixel * 8, FI_RGBA_RED_MASK, FI_RGBA_GREEN_MASK, FI_RGBA_BLUE_MASK, isTopDown);
+            if(is_set(exportFlags, ExportFlags::ExportAlpha) == false || fileFormat == Bitmap::FileFormat::JpegFile)
+            {
+                pImage = FreeImage_ConvertTo24Bits(pTemp);
+                FreeImage_Unload(pTemp);
+            }
+            else
+            {
+                pImage = pTemp;
+            }
+
+            std::vector<std::string> warnings;
+            switch(fileFormat)
+            {
+            case FileFormat::JpegFile:
+                if (is_set(exportFlags, ExportFlags::Lossy) == false || is_set(exportFlags, ExportFlags::Uncompressed))
+                {
+                    flags = JPEG_QUALITYSUPERB | JPEG_SUBSAMPLING_444;
+                }
+                if (is_set(exportFlags, ExportFlags::ExportAlpha))
+                {
+                    warnings.push_back("JPEG format does not support alpha channel.");
+                }
+                break;
+
+            // Lossless formats
+            case FileFormat::PngFile:
+                flags = is_set(exportFlags, ExportFlags::Uncompressed) ? PNG_Z_NO_COMPRESSION : PNG_Z_BEST_COMPRESSION;
+
+                if (is_set(exportFlags, ExportFlags::Lossy))
+                {
+                    warnings.push_back("PNG format does not support lossy compression mode.");
+                }
+                break;
+
+            case FileFormat::TgaFile:
+                if (is_set(exportFlags, ExportFlags::Lossy))
+                {
+                    warnings.push_back("TGA format does not support lossy compression mode.");
+                }
+                break;
+
+            case FileFormat::BmpFile:
+                if (is_set(exportFlags, ExportFlags::Lossy))
+                {
+                    warnings.push_back("BMP format does not support lossy compression mode.");
+                }
+                if (is_set(exportFlags, ExportFlags::ExportAlpha))
+                {
+                    warnings.push_back("BMP format does not support alpha channel.");
+                }
+                break;
+
+            default:
+                should_not_get_here();
+            }
+
+            if(warnings.empty() == false)
+            {
+                logWarning("Bitmap::saveImage: " + joinStrings(warnings, " "));
             }
         }
 

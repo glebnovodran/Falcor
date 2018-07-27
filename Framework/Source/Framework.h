@@ -74,6 +74,8 @@ using namespace glm;
 #define safe_delete(_a) {delete _a; _a = nullptr;}
 #define safe_delete_array(_a) {delete[] _a; _a = nullptr;}
 #define align_to(_alignment, _val) (((_val + _alignment - 1) / _alignment) * _alignment)
+#define concat_strings_(a, b) a##b
+#define concat_strings(a, b) concat_strings_(a, b)
 
 #if defined(_MSC_VER)
 #define FALCOR_DEPRECATED(MESSAGE) __declspec(deprecated(MESSAGE))
@@ -109,8 +111,14 @@ namespace Falcor
         Domain,         ///< Domain shader (AKA Tessellation evaluation shader)
         Compute,        ///< Compute shader
 
-        Extended,       ///< An extended, non-standard shader type
-
+#ifdef FALCOR_DXR
+        RayGeneration,  ///< Ray generation shader
+        Intersection,   ///< Intersection shader
+        AnyHit,         ///< Any hit shader
+        ClosestHit,     ///< Closest hit shader
+        Miss,           ///< Miss shader
+        Callable,       ///< Callable shader
+#endif
         Count           ///< Shader Type count
     };
 
@@ -186,16 +194,16 @@ namespace Falcor
     };
 }
 
+#ifdef FALCOR_DXR
+#define FALCOR_D3D12
+#endif
+
 #if defined(FALCOR_D3D12)
 #include "API/D3D12/FalcorD3D12.h"
 #elif defined(FALCOR_VK)
 #include "API/Vulkan/FalcorVK.h"
 #else
 #error Undefined falcor backend. Make sure that a backend is selected in "FalcorConfig.h"
-#endif
-
-#if defined(FALCOR_D3D12) || defined(FALCOR_VK)
-#define FALCOR_LOW_LEVEL_API
 #endif
 
 namespace Falcor
@@ -220,6 +228,20 @@ namespace Falcor
             return "geometry";
         case ShaderType::Compute:
             return "compute";
+#ifdef FALCOR_DXR
+        case ShaderType::RayGeneration:
+            return "raygeneration";
+        case ShaderType::Intersection:
+            return "intersection";
+        case ShaderType::AnyHit:
+            return "anyhit";
+        case ShaderType::ClosestHit:
+            return "closesthit";
+        case ShaderType::Miss:
+            return "miss";
+        case ShaderType::Callable:
+            return "callable";
+#endif
         default:
             should_not_get_here();
             return "";

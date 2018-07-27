@@ -72,6 +72,8 @@ namespace Falcor
         */
         static UniquePtr create(uint32_t width, uint32_t height);
 
+        ~Gui();
+
         /** Render the GUI
         */
         void render(RenderContext* pContext, float elapsedTime);
@@ -125,40 +127,14 @@ namespace Falcor
             \param[in] minVal Optional. The minimum allowed value for the float.
             \param[in] maxVal Optional. The maximum allowed value for the float.
             \param[in] step Optional. The step rate for the float.
-            \param[in] sameLine Optional. If set to true, the widget will appear on the same line as the previous widget
+            \param[in] sameLine Optional. If set to true, the widget will appear on the same line as the previous widget.
+            \param[in] displayFormat Optional. Formatting string.
             \return true if the value changed, otherwise false
         */
-        bool addFloatVar(const char label[], float& var, float minVal = -FLT_MAX, float maxVal = FLT_MAX, float step = 0.001f, bool sameLine = false);
-
-        /** Adds a 2-elements floating-point vector UI element.
-            \param[in] label The name of the widget.
-            \param[in] var A reference to a float2 that will be updated directly when the widget state changes.
-            \param[in] minVal Optional. The minimum allowed value for each element of the vector.
-            \param[in] maxVal Optional. The maximum allowed value for each element ofthe vector.
-            \param[in] sameLine Optional. If set to true, the widget will appear on the same line as the previous widget
-            \return true if the value changed, otherwise false
-        */
-        bool addFloat2Var(const char label[], glm::vec2& var, float minVal = -1, float maxVal = 1, bool sameLine = false);
-
-        /** Adds a 3-elements floating-point vector UI element.
-            \param[in] label The name of the widget.
-            \param[in] var A reference to a float3 that will be updated directly when the widget state changes.
-            \param[in] minVal Optional. The minimum allowed value for each element of the vector.
-            \param[in] maxVal Optional. The maximum allowed value for each element of the vector.
-            \param[in] sameLine Optional. If set to true, the widget will appear on the same line as the previous widget
-            \return true if the value changed, otherwise false
-        */
-        bool addFloat3Var(const char label[], glm::vec3& var, float minVal = -1, float maxVal = 1, bool sameLine = false);
-
-        /** Adds a 4-elements floating-point vector UI element.
-            \param[in] label The name of the widget.
-            \param[in] var A reference to a float4 that will be updated directly when the widget state changes.
-            \param[in] minVal Optional. The minimum allowed value for each element of the vector.
-            \param[in] maxVal Optional. The maximum allowed value for each element of the vector.
-            \param[in] sameLine Optional. If set to true, the widget will appear on the same line as the previous widget
-            \return true if the value changed, otherwise false
-        */
-        bool addFloat4Var(const char label[], glm::vec4& var, float minVal = -1, float maxVal = 1, bool sameLine = false);
+        bool addFloatVar(const char label[], float& var, float minVal = -FLT_MAX, float maxVal = FLT_MAX, float step = 0.001f, bool sameLine = false, const char* displayFormat = "%.3f");
+        bool addFloat2Var(const char label[], glm::vec2& var, float minVal = -FLT_MAX, float maxVal = FLT_MAX, float step = 0.001f, bool sameLine = false, const char* displayFormat = "%.3f");
+        bool addFloat3Var(const char label[], glm::vec3& var, float minVal = -FLT_MAX, float maxVal = FLT_MAX, float step = 0.001f, bool sameLine = false, const char* displayFormat = "%.3f");
+        bool addFloat4Var(const char label[], glm::vec4& var, float minVal = -FLT_MAX, float maxVal = FLT_MAX, float step = 0.001f, bool sameLine = false, const char* displayFormat = "%.3f");
 
         /** Adds a checkbox.
             \param[in] label The name of the checkbox.
@@ -167,6 +143,24 @@ namespace Falcor
             \return true if the value changed, otherwise false
         */
         bool addCheckBox(const char label[], bool& pVar, bool sameLine = false);
+
+        /** Adds a checkbox.
+            \param[in] label The name of the checkbox.
+            \param[in] var A reference to an integer that will be updated directly when the checkbox state changes (0 = unchecked, 1 = checked).
+            \param[in] sameLine Optional. If set to true, the widget will appear on the same line as the previous widget
+            \return true if the value changed, otherwise false
+        */
+        bool addCheckBox(const char label[], int& pVar, bool sameLine = false);
+
+        /** Adds a UI widget for multiple checkboxes.
+            \param[in] label The name of the widget.
+            \param[in] var A reference to the bools that will be updated directly when the checkbox state changes (0 = unchecked, 1 = checked).
+            \param[in] sameLine Optional. If set to true, the widget will appear on the same line as the previous widget
+            \return true if the value changed, otherwise false
+        */
+        bool addBool2Var(const char lable[], glm::bvec2& var, bool sameLine = false);
+        bool addBool3Var(const char lable[], glm::bvec3& var, bool sameLine = false);
+        bool addBool4Var(const char lable[], glm::bvec4& var, bool sameLine = false);
 
         /** Adds an RGB color UI widget.
             \param[in] label The name of the widget.
@@ -184,7 +178,7 @@ namespace Falcor
         */
         bool addRgbaColor(const char label[], glm::vec4& var, bool sameLine = false);
 
-        /** Adds an integer UI widget.
+        /** Adds a UI widget for integers.
             \param[in] label The name of the widget.
             \param[in] var A reference to an integer that will be updated directly when the widget state changes.
             \param[in] minVal Optional. The minimum allowed value for the variable.
@@ -194,6 +188,23 @@ namespace Falcor
             \return true if the value changed, otherwise false
         */
         bool addIntVar(const char label[], int32_t& var, int minVal = -INT32_MAX, int maxVal = INT32_MAX, int step = 1, bool sameLine = false);
+        bool addInt2Var(const char label[], glm::ivec2& var, int32_t minVal = -INT32_MAX, int32_t maxVal = INT32_MAX, bool sameLine = false);
+        bool addInt3Var(const char label[], glm::ivec3& var, int32_t minVal = -INT32_MAX, int32_t maxVal = INT32_MAX, bool sameLine = false);
+        bool addInt4Var(const char label[], glm::ivec4& var, int32_t minVal = -INT32_MAX, int32_t maxVal = INT32_MAX, bool sameLine = false);
+
+        template<typename VectorType>
+        bool addFloatVecVar(const char label[], VectorType& var, float minVal = -FLT_MAX, float maxVal = FLT_MAX, float step = 0.001f, bool sameLine = false);
+
+        /** Adds an matrix UI widget.
+            \param[in] label The name of the widget.
+            \param[in] var A reference to the matrix struct that will be updated directly when the widget state changes.
+            \param[in] minVal Optional. The minimum allowed value for the variable.
+            \param[in] maxVal Optional. The maximum allowed value for the variable.
+            \param[in] sameLine Optional. If set to true, the widget will appear on the same line as the previous widget
+            \return true if the value changed, otherwise false
+        */
+        template <typename MatrixType>
+        bool addMatrixVar(const char label[], MatrixType& var, float minVal = -FLT_MAX, float maxVal = FLT_MAX, bool sameLine = false);
 
         /** Add a separator
         */
@@ -279,6 +290,9 @@ namespace Falcor
         Gui() = default;
         void init();
         void createVao(uint32_t vertexCount, uint32_t indexCount);
+
+        // Helper to create multiple inline text boxes
+        bool addCheckboxes(const char label[], bool* pData, uint32_t numCheckboxes, bool sameLine);
 
         struct ComboData
         {

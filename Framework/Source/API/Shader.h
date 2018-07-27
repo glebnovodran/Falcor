@@ -52,6 +52,7 @@ namespace Falcor
             };
             std::vector<uint8_t> data;
             Type type = Type::Undefined;
+            std::string shaderModel;
         };
 
         enum class CompilerFlags
@@ -64,8 +65,8 @@ namespace Falcor
         class DefineList : public std::map<std::string, std::string>
         {
         public:
-            void add(const std::string& name, const std::string& val = "") { (*this)[name] = val; }
-            void remove(const std::string& name) {(*this).erase(name); }
+            DefineList& add(const std::string& name, const std::string& val = "") { (*this)[name] = val; return *this; }
+            DefineList& remove(const std::string& name) { (*this).erase(name); return *this; }
         };
 
         /** create a shader object
@@ -84,7 +85,7 @@ namespace Falcor
 
         /** Get the API handle.
         */
-        ApiHandle getApiHandle() const { return mApiHandle; }
+        const ApiHandle& getApiHandle() const { return mApiHandle; }
 
         /** Get the shader Type
         */
@@ -92,7 +93,7 @@ namespace Falcor
 
 
 
-#ifdef FALCOR_D3D
+#ifdef FALCOR_D3D12
         ID3DBlobPtr getD3DBlob() const;
         virtual ID3DBlobPtr compile(const Blob& blob, const std::string&  entryPointName, CompilerFlags flags, std::string& errorLog);
 #endif
