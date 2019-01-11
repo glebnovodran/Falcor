@@ -26,18 +26,23 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
 #pragma once
-#include "Falcor.h"
+#include "Experimental/RenderGraph/RenderPass.h"
+#include "Graphics/FullScreenPass.h"
+#include "Graphics/Program/ProgramVars.h"
 
 namespace Falcor
 {
     class Gui;
+    class Texture;
+    class Fbo;
 
     /** Temporal AA class
     */
-    class FXAA
+    class FXAA : public RenderPass, public inherit_shared_from_this<RenderPass, FXAA>
     {
     public:
-        using UniquePtr = std::unique_ptr<FXAA>;
+        using SharedPtr = std::shared_ptr<FXAA>;
+        static const char* kDesc;
 
         /** Destructor
         */
@@ -45,7 +50,7 @@ namespace Falcor
 
         /** Create a new instance
         */
-        static UniquePtr create();
+        static SharedPtr create(const Dictionary& dict = {});
 
         /** Render UI controls for this effect.
             \param[in] pGui GUI object to render UI elements with
@@ -58,8 +63,19 @@ namespace Falcor
             \param[in] pPrevColor Previous frame color buffer
             \param[in] pMotionVec Motion vector buffer
         */
-        void execute(RenderContext* pRenderContext, const Texture::SharedPtr& pSrcTex, const Fbo::SharedPtr& pDstFbo);
+        void execute(RenderContext* pRenderContext, const std::shared_ptr<Texture>& pSrcTex, const std::shared_ptr<Fbo>& pDstFbo);
 
+        /** Get a description of the pass
+        */
+        std::string getDesc() override { return kDesc; }
+
+        /** Reflect the pass
+        */
+        virtual RenderPassReflection reflect() const override;
+
+        /** execute the pass
+        */
+        virtual void execute(RenderContext* pContext, const RenderData* pData) override;
     private:
         FXAA();
 

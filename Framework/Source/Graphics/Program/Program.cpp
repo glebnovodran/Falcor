@@ -28,7 +28,6 @@
 #include "Framework.h"
 #include "Program.h"
 #include <vector>
-#include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "Graphics/TextureHelper.h"
 #include "Utils/Platform/OS.h"
@@ -45,11 +44,7 @@ namespace Falcor
 #ifdef FALCOR_VK
     const std::string kSupportedShaderModels[] = { "400", "410", "420", "430", "440", "450" };
 #elif defined FALCOR_D3D12
-    const std::string kSupportedShaderModels[] = { "4_0", "4_1", "5_0", "5_1", "6_0", "6_1", "6_2", 
-#ifdef FALCOR_DXR
-        "6_3" 
-#endif
-    };
+    const std::string kSupportedShaderModels[] = { "4_0", "4_1", "5_0", "5_1", "6_0", "6_1", "6_2", "6_3" };
 #endif
 
     static Shader::SharedPtr createShaderFromBlob(const Shader::Blob& shaderBlob, ShaderType shaderType, const std::string& entryPointName, Shader::CompilerFlags flags, std::string& log)
@@ -291,22 +286,10 @@ namespace Falcor
         }
         return dirty;
     }
-
-    bool Program::clearDefines()
+    
+    bool Program::setDefines(const DefineList& dl)
     {
-        if (!mDefineList.empty())
-        {
-            mLinkRequired = true;
-            mDefineList.clear();
-            return true;
-        }
-        return false;
-    }
-
-    bool Program::replaceAllDefines(const DefineList& dl)
-    {
-        // TODO: re-link only if new macros differ from existing
-        if (!mDefineList.empty() || !dl.empty())
+        if (dl != mDefineList)
         {
             mLinkRequired = true;
             mDefineList = dl;
@@ -386,7 +369,7 @@ namespace Falcor
         case ShaderType::Hull:          return SLANG_STAGE_HULL;
         case ShaderType::Domain:        return SLANG_STAGE_DOMAIN;
         case ShaderType::Compute:       return SLANG_STAGE_COMPUTE;
-#ifdef FALCOR_DXR
+#ifdef FALCOR_D3D12
         case ShaderType::RayGeneration: return SLANG_STAGE_RAY_GENERATION;
         case ShaderType::Intersection:  return SLANG_STAGE_INTERSECTION;
         case ShaderType::AnyHit:        return SLANG_STAGE_ANY_HIT;
@@ -456,13 +439,14 @@ namespace Falcor
         preprocessorDefine = "FALCOR_D3D";
         // If the profile string starts with a `4_` or a `5_`, use DXBC. Otherwise, use DXIL
         if (hasPrefix(mDesc.mShaderModel, "4_") || hasPrefix(mDesc.mShaderModel, "5_")) slangTarget = SLANG_DXBC;
-        else if (mDesc.mShaderModel == "6_3")                                           slangTarget = SLANG_HLSL;   // TODO This is actually a hack for DXR, we need to fix it
         else                                                                            slangTarget = SLANG_DXIL;
 #else
 #error unknown shader compilation target
 #endif
         spSetCodeGenTarget(slangRequest, slangTarget);
         spAddPreprocessorDefine(slangRequest, preprocessorDefine, "1");
+        std::string sm = "__SM_" + mDesc.mShaderModel + "__";
+        spAddPreprocessorDefine(slangRequest, sm.c_str(), "1");
 
         spSetTargetProfile(slangRequest, 0, spFindProfile(slangSession, getSlangProfileString(mDesc.mShaderModel).c_str()));
 
@@ -471,6 +455,20 @@ namespace Falcor
         // this is what we want/expect so that it can compute correct reflection information.
         //
         spSetTargetMatrixLayoutMode(slangRequest, 0, SLANG_MATRIX_LAYOUT_ROW_MAJOR);
+
+        // Set floating point mode. If no shader compiler flags for this were set, we use Slang's default mode.
+        bool flagFast = is_set(mDesc.getCompilerFlags(), Shader::CompilerFlags::FloatingPointModeFast);
+        bool flagPrecise = is_set(mDesc.getCompilerFlags(), Shader::CompilerFlags::FloatingPointModePrecise);
+        if (flagFast && flagPrecise)
+        {
+            logWarning("Shader compiler flags 'FloatingPointModeFast' and 'FloatingPointModePrecise' can't be used simultaneously. Ignoring 'FloatingPointModeFast'.");
+            flagFast = false;
+        }
+        SlangFloatingPointMode slangFpMode = SLANG_FLOATING_POINT_MODE_DEFAULT;
+        if (flagFast) slangFpMode = SLANG_FLOATING_POINT_MODE_FAST;
+        else if (flagPrecise) slangFpMode = SLANG_FLOATING_POINT_MODE_PRECISE;
+
+        spSetTargetFloatingPointMode(slangRequest, 0, slangFpMode);
 
         // Configure any flags for the Slang compilation step
         SlangCompileFlags slangFlags = 0;
@@ -498,7 +496,11 @@ namespace Falcor
                     logWarning("Compiling a shader file which is not a SLANG file or an HLSL file. This is not an error, but make sure that the file contains valid shaders");
                 }
                 std::string fullpath;
-                findFileInDataDirectories(src.pLibrary->getFilename(), fullpath);
+                if (!findFileInDataDirectories(src.pLibrary->getFilename(), fullpath))
+                {
+                    logError(std::string("Can't find file ") + src.pLibrary->getFilename(), true);
+                    return VersionData();
+                }
                 spAddTranslationUnitSourceFile(slangRequest, translationUnitIndex, fullpath.c_str());
             }
             else
@@ -547,21 +549,9 @@ namespace Falcor
                 continue;
 
             int entryPointIndex = entryPointCounter++;
+            int targetIndex = 0; // We always compile for a single target
 
-            if (slangTarget == SLANG_GLSL || slangTarget == SLANG_GLSL_VULKAN || slangTarget == SLANG_HLSL)
-            {
-                shaderBlob[i].type = Shader::Blob::Type::String;
-                const char* data = spGetEntryPointSource(slangRequest, entryPointIndex);
-                shaderBlob[i].data.assign(data, data + strlen(data));
-            }
-            else
-            {
-                shaderBlob[i].type = Shader::Blob::Type::Bytecode;
-                size_t size = 0;
-                const uint8_t* data = (uint8_t*)spGetEntryPointCode(slangRequest, entryPointIndex, &size);
-                shaderBlob[i].data.assign(data, data + size);
-            }
-            shaderBlob[i].shaderModel = mDesc.mShaderModel;
+            spGetEntryPointCodeBlob(slangRequest, entryPointIndex, targetIndex, shaderBlob[i].writeRef());
         }
 
         VersionData programVersion;
@@ -594,7 +584,7 @@ namespace Falcor
         Shader::SharedPtr shaders[kShaderCount] = {};
         for (uint32_t i = 0; i < kShaderCount; i++)
         {
-            if (shaderBlob[i].data.size())
+            if (shaderBlob[i])
             { 
                 shaders[i] = createShaderFromBlob(shaderBlob[i], ShaderType(i), mDesc.mEntryPoints[i].name, mDesc.getCompilerFlags(), log);
                 if (!shaders[i]) return nullptr;

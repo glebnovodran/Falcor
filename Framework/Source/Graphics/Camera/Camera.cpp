@@ -27,10 +27,10 @@
 ***************************************************************************/
 #include "Framework.h"
 #include "Camera.h"
-#include "glm/gtx/quaternion.hpp"
 #include "Utils/AABB.h"
 #include "Utils/Math/FalcorMath.h"
 #include "API/ConstantBuffer.h"
+#include "Utils/Gui.h"
 
 namespace Falcor
 {
@@ -51,6 +51,13 @@ namespace Falcor
 
     void Camera::beginFrame()
     {
+        if (mJitterPattern.pGenerator)
+        {
+            vec2 jitter = mJitterPattern.pGenerator->next();
+            jitter *= mJitterPattern.scale;
+            setJitterInternal(jitter.x, jitter.y);
+        }
+
         mData.prevViewProjMat = mViewProjMatNoJitter;
         mData.rightEyePrevViewProjMat = mData.rightEyeViewProjMat;
     }
@@ -231,5 +238,58 @@ namespace Falcor
         setPosition(position);
         setTarget(target);
         setUpVector(up);
+    }
+
+    void Camera::setPatternGenerator(const PatternGenerator::SharedPtr& pGenerator, const vec2& scale)
+    {
+        mJitterPattern.pGenerator = pGenerator;
+        mJitterPattern.scale = scale;
+        if (!pGenerator)
+        {
+            setJitterInternal(0, 0);
+        }
+    }
+
+    void Camera::setJitter(float jitterX, float jitterY)
+    {
+        if (mJitterPattern.pGenerator)
+        {
+            logWarning("Camera::setJitter() called when a pattern-generator object was attached to the camera. Detaching the pattern-generator");
+            mJitterPattern.pGenerator = nullptr;
+        }
+        setJitterInternal(jitterX, jitterY);
+    }
+
+    void Camera::setJitterInternal(float jitterX, float jitterY)
+    { 
+        mData.jitterX = jitterX; 
+        mData.jitterY = jitterY; 
+        mDirty = true; 
+    }
+
+    void Camera::renderUI(Gui* pGui, const char* uiGroup)
+    {
+        if (uiGroup == nullptr || pGui->beginGroup(uiGroup))
+        {
+            float focalLength = getFocalLength();
+            if (pGui->addFloatVar("Focal Length", focalLength, 0.0f, FLT_MAX, 0.25f)) setFocalLength(focalLength);
+
+            float aspectRatio = getAspectRatio();
+            if (pGui->addFloatVar("Aspect Ratio", aspectRatio, 0, FLT_MAX, 0.001f)) setAspectRatio(aspectRatio);
+
+            float2 depth(getNearPlane(), getFarPlane());
+            if (pGui->addFloat2Var("Depth Range", depth, 0, FLT_MAX, 0.1f)) setDepthRange(depth.x, depth.y);
+
+            float3 pos = getPosition();
+            if (pGui->addFloat3Var("Position", pos)) setPosition(pos);
+
+            float3 target = getTarget();
+            if (pGui->addFloat3Var("Target", target)) setTarget(target);
+
+            float3 up = getTarget();
+            if (pGui->addFloat3Var("Up", up)) setUpVector(up);
+
+            if (uiGroup) pGui->endGroup();
+        }
     }
 }

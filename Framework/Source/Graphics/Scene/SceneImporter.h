@@ -27,7 +27,7 @@
 ***************************************************************************/
 #pragma once
 #include <string>
-#include "Externals/RapidJson/include/rapidjson/document.h"
+#include "rapidjson/document.h"
 #include "Graphics/Material/Material.h"
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"
@@ -47,6 +47,7 @@ namespace Falcor
         bool load(const std::string& filename, Model::LoadFlags modelLoadFlags, Scene::LoadFlags sceneLoadFlags);
 
         bool parseVersion(const rapidjson::Value& jsonVal);
+        bool parseSceneUnit(const rapidjson::Value& jsonVal);
         bool parseModels(const rapidjson::Value& jsonVal);
         bool parseLights(const rapidjson::Value& jsonVal);
         bool parseLightProbes(const rapidjson::Value& jsonVal);
@@ -59,6 +60,7 @@ namespace Falcor
         bool parseUserDefinedSection(const rapidjson::Value& jsonVal);
         bool parseActivePath(const rapidjson::Value& jsonVal);
         bool parseIncludes(const rapidjson::Value& jsonVal);
+        bool parseEnvMap(const rapidjson::Value& jsonVal);
 
         bool topLevelLoop();
 
@@ -68,6 +70,7 @@ namespace Falcor
         bool createModelInstances(const rapidjson::Value& jsonVal, const Model::SharedPtr& pModel);
         bool createPointLight(const rapidjson::Value& jsonLight);
         bool createDirLight(const rapidjson::Value& jsonLight);
+        bool createAnalyticAreaLight(const rapidjson::Value& jsonLight);
         ObjectPath::SharedPtr createPath(const rapidjson::Value& jsonPath);
         bool createPathFrames(ObjectPath* pPath, const rapidjson::Value& jsonFramesArray);
         bool createCamera(const rapidjson::Value& jsonCamera);

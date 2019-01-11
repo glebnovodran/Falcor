@@ -58,8 +58,8 @@ namespace Falcor
         {
             ResourceFormat colorFormat = ResourceFormat::BGRA8UnormSrgb;    ///< The color buffer format
             ResourceFormat depthFormat = ResourceFormat::D32Float;          ///< The depth buffer format
-            int apiMajorVersion = DEFAULT_API_MAJOR_VERSION;                ///< Requested API major version. Context creation fails if this version is not supported.
-            int apiMinorVersion = DEFAULT_API_MINOR_VERSION;                ///< Requested API minor version. Context creation fails if this version is not supported.
+            uint32_t apiMajorVersion = 0;                                   ///< Requested API major version. If specified, device creation will fail if not supported. Otherwise, the highest supported version will be automatically selected.
+            uint32_t apiMinorVersion = 0;                                   ///< Requested API minor version. If specified, device creation will fail if not supported. Otherwise, the highest supported version will be automatically selected.
             std::vector<std::string> requiredExtensions;                    ///< Extensions required by the sample
             bool enableVsync = false;                                       ///< Controls vertical-sync
             bool enableDebugLayer = DEFAULT_ENABLE_DEBUG_LAYER;             ///< Enable the debug layer. The default for release build is false, for debug build it's true.
@@ -72,6 +72,14 @@ namespace Falcor
             // GUID list for experimental features
             std::vector<UUID> experimentalFeatures;
 #endif
+        };
+
+        enum class SupportedFeatures
+        {
+            None = 0x0,
+            ProgrammableSamplePositionsPartialOnly = 0x1, // On D3D12, this means tier 1 support. Allows one sample position to be set.
+            ProgrammableSamplePositionsFull = 0x2,        // On D3D12, this means tier 2 support. Allows up to 4 sample positions to be set.
+            Raytracing = 0x4                              // On D3D12, DirectX Raytracing is supported. It is up to the user to not use raytracing functions when not supported.
         };
 
         /** Create a new device.
@@ -96,6 +104,7 @@ namespace Falcor
 
         /** Check if the device support an extension
         */
+        deprecate("3.3", "This no longer does anything. Use isFeatureSupported() for extension and feature support queries.")
         bool isExtensionSupported(const std::string & name) const;
 
         /** Get the FBO object associated with the swap-chain.
@@ -106,7 +115,7 @@ namespace Falcor
         /** Get the default render-context.
             The default render-context is managed completely by the device. The user should just queue commands into it, the device will take care of allocation, submission and synchronization
         */
-        const RenderContext::SharedPtr& getRenderContext() const { return mpRenderContext; }
+        RenderContext* getRenderContext() const { return mpRenderContext.get(); }
 
         /** Get the command queue handle
         */
@@ -143,7 +152,10 @@ namespace Falcor
         const QueryHeap::SharedPtr& getTimestampQueryHeap() const { return mTimestampQueryHeap; }
         void releaseResource(ApiObjectHandle pResource);
         double getGpuTimestampFrequency() const { return mGpuTimestampFrequency; } // ms/tick
-        bool isRgb32FloatSupported() const { return mRgb32FloatSupported; }
+
+        /** Check if features are supported by the device
+        */
+        bool isFeatureSupported(SupportedFeatures flags) const;
 
 #ifdef FALCOR_VK
         enum class MemoryType
@@ -189,8 +201,9 @@ namespace Falcor
         size_t mFrameID = 0;
         QueryHeap::SharedPtr mTimestampQueryHeap;
         double mGpuTimestampFrequency;
-        bool mRgb32FloatSupported = true;
         std::vector<CommandQueueHandle> mCmdQueues[kQueueTypeCount];
+
+        SupportedFeatures mSupportedFeatures = SupportedFeatures::None;
 
         // API specific functions
         bool getApiFboData(uint32_t width, uint32_t height, ResourceFormat colorFormat, ResourceFormat depthFormat, std::vector<ResourceHandle>& apiHandles, uint32_t& currentBackBufferIndex);
@@ -202,5 +215,7 @@ namespace Falcor
         void toggleFullScreen(bool fullscreen);
     };
 
-    extern Device::SharedPtr gpDevice;
+    dlldecl Device::SharedPtr gpDevice;
+
+    enum_class_operators(Device::SupportedFeatures);
 }

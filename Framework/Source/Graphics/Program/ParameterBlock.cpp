@@ -526,7 +526,7 @@ namespace Falcor
     template<typename ViewType>
     Resource::SharedPtr getResourceFromView(const ViewType* pView)
     {
-        return (pView) ? const_cast<Resource*>(pView->getResource())->shared_from_this() : nullptr;
+        return (pView) ? pView->getResource()->shared_from_this() : nullptr;
     }
 
     bool ParameterBlock::setSrv(const BindLocation& bindLocation, uint32_t arrayIndex, const ShaderResourceView::SharedPtr& pSrv)
@@ -608,7 +608,7 @@ namespace Falcor
         }
         
         bool insertBarrier = true;
-#ifdef FALCOR_DXR
+#ifdef FALCOR_D3D12
         insertBarrier = (is_set(pResource->getBindFlags(), Resource::BindFlags::AccelerationStructure) == false);
 #endif
         if (insertBarrier)

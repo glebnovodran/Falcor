@@ -79,6 +79,25 @@ void ForwardRenderer::applyLightingProgramControl(ControlID controlId)
     }
 }
 
+void ForwardRenderer::createTaaPatternGenerator(uint32_t fboWidth, uint32_t fboHeight)
+{
+    PatternGenerator::SharedPtr pGenerator;
+    switch (mTAASamplePattern)
+    {
+    case SamplePattern::Halton:
+        pGenerator = HaltonSamplePattern::create();
+        break;
+    case SamplePattern::DX11:
+        pGenerator = DxSamplePattern::create();
+        break;
+    default:
+        should_not_get_here();
+        pGenerator = nullptr;
+    }
+
+    mpSceneRenderer->getScene()->getActiveCamera()->setPatternGenerator(pGenerator, 1.0f/vec2(fboWidth, fboHeight));
+}
+
 void ForwardRenderer::applyAaMode(SampleCallbacks* pSample)
 {
     if (mLightingPass.pProgram == nullptr) return;
@@ -104,9 +123,11 @@ void ForwardRenderer::applyAaMode(SampleCallbacks* pSample)
         Fbo::Desc taaFboDesc;
         taaFboDesc.setColorTarget(0, ResourceFormat::RGBA8UnormSrgb);
         mTAA.createFbos(w, h, taaFboDesc);
+        createTaaPatternGenerator(w, h);
     }
     else
     {
+        mpSceneRenderer->getScene()->getActiveCamera()->setPatternGenerator(nullptr);
         mLightingPass.pProgram->removeDefine("_OUTPUT_MOTION_VECTORS");
         applyLightingProgramControl(SuperSampling);
         fboDesc.setSampleCount(mAAMode == AAMode::MSAA ? mMSAASampleCount : 1);
@@ -138,11 +159,12 @@ void ForwardRenderer::applyAaMode(SampleCallbacks* pSample)
 
 void ForwardRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
 {
-    static const char* kImageFileString = "Image files\0*.jpg;*.bmp;*.dds;*.png;*.tiff;*.tif;*.tga;*.hdr;*.exr\0\0";
+    static const FileDialogFilterVec kImageFilesFilter = { {"bmp"}, {"jpg"}, {"dds"}, {"png"}, {"tiff"}, {"tif"}, {"tga"} };
+
     if (pGui->addButton("Load Model"))
     {
         std::string filename;
-        if (openFileDialog(Model::kSupportedFileFormatsStr, filename))
+        if (openFileDialog(Model::kFileExtensionFilters, filename))
         {
             loadModel(pSample, filename, true);
         }
@@ -151,7 +173,7 @@ void ForwardRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
     if (pGui->addButton("Load Scene"))
     {
         std::string filename;
-        if (openFileDialog(Scene::kFileFormatString, filename))
+        if (openFileDialog(Scene::kFileExtensionFilters, filename))
         {
             loadScene(pSample, filename, true);
         }
@@ -162,7 +184,7 @@ void ForwardRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
         if (pGui->addButton("Load SkyBox Texture"))
         {
             std::string filename;
-            if (openFileDialog(kImageFileString, filename))
+            if (openFileDialog(kImageFilesFilter, filename))
             {
                 initSkyBox(filename);
             }
@@ -278,9 +300,9 @@ void ForwardRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
             if (pGui->addButton("Add/Change Light Probe"))
             {
                 std::string filename;
-                if (openFileDialog(kImageFileString, filename))
+                if (openFileDialog(kImageFilesFilter, filename))
                 {
-                    updateLightProbe(LightProbe::create(pSample->getRenderContext().get(), filename, true, ResourceFormat::RGBA16Float));
+                    updateLightProbe(LightProbe::create(pSample->getRenderContext(), filename, true, ResourceFormat::RGBA16Float));
                 }
             }
 
@@ -312,7 +334,7 @@ void ForwardRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
             if (mControls[ControlID::EnableShadows].enabled)
             {
                 pGui->addCheckBox("Update Map", mShadowPass.updateShadowMap);
-                mShadowPass.pCsm->renderUi(pGui);
+                mShadowPass.pCsm->renderUI(pGui);
                 if (pGui->addCheckBox("Visualize Cascades", mControls[ControlID::VisualizeCascades].enabled))
                 {
                     applyLightingProgramControl(ControlID::VisualizeCascades);
@@ -331,7 +353,7 @@ void ForwardRenderer::onGuiRender(SampleCallbacks* pSample, Gui* pGui)
 
             if (mControls[ControlID::EnableSSAO].enabled)
             {
-                mSSAO.pSSAO->renderGui(pGui);
+                mSSAO.pSSAO->renderUI(pGui);
             }
             pGui->endGroup();
         }

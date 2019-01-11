@@ -31,8 +31,6 @@
 
 namespace Falcor
 {
-    Device::SharedPtr gpDevice;
-    
     Device::SharedPtr Device::create(Window::SharedPtr& pWindow, const Device::Desc& desc)
     {
         if (gpDevice)
@@ -80,7 +78,7 @@ namespace Falcor
             return false;
         }
 
-        if (desc.enableVR && VRSystem::instance()) VRSystem::instance()->initDisplayAndController(mpRenderContext);
+        if (desc.enableVR && VRSystem::instance()) VRSystem::instance()->initDisplayAndController();
         gpDevice->mTimestampQueryHeap = QueryHeap::create(QueryHeap::Type::Timestamp, 128 * 1024 * 1024);
         
         return true;
@@ -145,6 +143,11 @@ namespace Falcor
                 mDeferredReleases.push({ mpFrameFence->getCpuValue(), pResource });
             }
         }
+    }
+
+    bool Device::isFeatureSupported(SupportedFeatures flags) const
+    {
+        return is_set(mSupportedFeatures, flags);
     }
 
     void Device::executeDeferredReleases()

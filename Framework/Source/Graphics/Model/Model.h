@@ -66,7 +66,8 @@ namespace Falcor
             DontMergeMeshes             = 0x8,    ///< Preserve the original list of meshes in the scene, don't merge meshes with the same material
             BuffersAsShaderResource     = 0x10,   ///< Generate the VBs and IB with the shader-resource-view bind flag
             RemoveInstancing            = 0x20,   ///< Flatten mesh instances
-            UseSpecGlossMaterials       = 0x40,   ///< Set materials to use Spec-Gloss shading model. Otherwise default is Metal-Rough.
+            UseSpecGlossMaterials       = 0x40,   ///< Set materials to use Spec-Gloss shading model. Otherwise default is Metal-Rough for FBX, Spec-Gloss for OBJ.
+            UseMetalRoughMaterials      = 0x80,   ///< Set materials to use Metal-Rough shading model. Otherwise default is Metal-Rough for FBX, Spec-Gloss for OBJ.
         };
 
         /** Create a new model from file
@@ -75,7 +76,7 @@ namespace Falcor
 
         static SharedPtr create();
 
-        static const char* kSupportedFileFormatsStr;
+        static const FileDialogFilterVec kFileExtensionFilters;
 
         virtual ~Model();
 
@@ -289,4 +290,24 @@ namespace Falcor
     };
 
     enum_class_operators(Model::LoadFlags);
+
+#define flag_str(a) case Model::LoadFlags::a: return #a
+    inline std::string to_string(Model::LoadFlags f)
+    {
+        switch (f)
+        {
+            flag_str(None);
+            flag_str(DontGenerateTangentSpace);
+            flag_str(FindDegeneratePrimitives);
+            flag_str(AssumeLinearSpaceTextures);
+            flag_str(DontMergeMeshes);
+            flag_str(BuffersAsShaderResource);
+            flag_str(RemoveInstancing);            
+            flag_str(UseSpecGlossMaterials);
+        default:
+            should_not_get_here();
+            return "";
+        }
+    }
+#undef flag_str
 }

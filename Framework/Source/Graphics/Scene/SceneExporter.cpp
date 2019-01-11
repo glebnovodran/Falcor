@@ -27,7 +27,6 @@
 ***************************************************************************/
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/prettywriter.h"
-#include "glm/detail/func_trigonometric.hpp"
 
 #include "Framework.h"
 #include "SceneExporter.h"
@@ -91,6 +90,12 @@ namespace Falcor
         rapidjson::Value jvec(rapidjson::kArrayType);
         for (int32_t i = 0; i < value.length(); i++)
         {
+            // Print warning and abort on invalid floating-point value, otherwise the export fails and we get a corrupt file.
+            if (isnan(value[i]) || isinf(value[i]))
+            {
+                logWarning("SceneExporter: invalid number found (inf/nan), ignoring value");
+                return;
+            }
             jvec.PushBack(value[i], jallocator);
         }
 
@@ -143,6 +148,7 @@ namespace Falcor
         rapidjson::Value& jval = mJDoc;
         auto& Allocator = mJDoc.GetAllocator();
 
+        addLiteral(jval, Allocator, SceneKeys::kSceneUnit, mpScene->getSceneUnit());
         addLiteral(jval, Allocator, SceneKeys::kCameraSpeed, mpScene->getCameraSpeed());
         addLiteral(jval, Allocator, SceneKeys::kLightingScale, mpScene->getLightingScale());
 
@@ -170,7 +176,7 @@ namespace Falcor
         // Export model material properties
         rapidjson::Value materialValue;
         materialValue.SetObject();
-        switch(pModel->getMesh(0)->getMaterial()->getShadingModel())
+        switch (pModel->getMesh(0)->getMaterial()->getShadingModel())
         {
         case ShadingModelMetalRough:
             addString(materialValue, allocator, SceneKeys::kShadingModel, SceneKeys::kShadingMetalRough);
@@ -408,6 +414,12 @@ namespace Falcor
 
         rapidjson::Value jsonUserValues(rapidjson::kObjectType);
         auto& allocator = mJDoc.GetAllocator();
+
+        // TODO -- use these. unused scenekeys to avoid linux warning
+        (void)SceneKeys::kEnvMap;
+        (void)SceneKeys::kAreaLightRect;
+        (void)SceneKeys::kAreaLightSphere;
+        (void)SceneKeys::kAreaLightDisc;
 
         for (uint32_t varID = 0; varID < mpScene->getUserVariableCount(); varID++)
         {

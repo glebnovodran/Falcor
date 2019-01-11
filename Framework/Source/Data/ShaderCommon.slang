@@ -78,13 +78,6 @@ float3x3 getBlendedInvTransposeBoneMat(float4 weights, uint4 ids)
 #endif
 
 ParameterBlock<MaterialData> gMaterial;
-cbuffer InternalPerMaterialCB
-{
-    MaterialData gTemporalMaterial;
-    float gTemporalLODThreshold;
-    bool gEnableTemporalNormalMaps;
-    bool gDebugTemporalMaterial;
-};
 
 float2 calcMotionVector(float2 pixelCrd, float4 prevPosH, float2 renderTargetDim)
 {
@@ -124,5 +117,21 @@ struct ShadingData
     float IoR;
     bool doubleSidedMaterial;
 };
+
+#define interfacify(a) typedef a I##a
+interfacify(Texture1D);
+interfacify(Texture1DArray);
+interfacify(Texture2D);
+interfacify(Texture2DArray);
+interfacify(Texture3D);
+interfacify(TextureCube);
+interfacify(TextureCubeArray);
+
+interfacify(RWTexture1D);
+interfacify(RWTexture1DArray);
+interfacify(RWTexture2D);
+interfacify(RWTexture2DArray);
+interfacify(RWTexture3D);
+#undef interfacify
 
 #endif  // _FALCOR_SHADER_COMMON_H_

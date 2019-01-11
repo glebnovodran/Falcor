@@ -177,7 +177,7 @@ namespace Falcor
             pTexture = Texture::create2D(pOrigTex->getWidth(), pOrigTex->getHeight(), overrideFormat, 1, Texture::kMaxPossible, nullptr, Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
             pTexture->setSourceFilename(pOrigTex->getSourceFilename());
             gpDevice->getRenderContext()->blit(pOrigTex->getSRV(0, 1, 0, 1), pTexture->getRTV(0, 0, 1));
-            pTexture->generateMips(gpDevice->getRenderContext().get());
+            pTexture->generateMips(gpDevice->getRenderContext());
         }
         else
         {
@@ -246,7 +246,7 @@ namespace Falcor
         // Set the data into the constant buffer
         check_offset(posW);
         check_offset(intensity);
-        static_assert(kDataSize % sizeof(float) * 4 == 0, "LightProbeData size should be a multiple of 16");
+        static_assert(kDataSize % sizeof(vec4) == 0, "LightProbeData size should be a multiple of 16");
 
         if (offset == ConstantBuffer::kInvalidOffset)
         {

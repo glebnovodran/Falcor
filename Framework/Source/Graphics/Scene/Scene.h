@@ -40,12 +40,14 @@
 
 namespace Falcor
 {
+    class Gui;
+
     class Scene : public std::enable_shared_from_this<Scene>
     {
     public:
         using SharedPtr = std::shared_ptr<Scene>;
         using SharedConstPtr = std::shared_ptr<const Scene>;
-        static const char* kFileFormatString;
+        static const FileDialogFilterVec kFileExtensionFilters;
 
         struct UserVariable
         {
@@ -82,11 +84,12 @@ namespace Falcor
             std::vector<float> vector;
 
             UserVariable() { }
-            UserVariable(const int32_t      v) : i32(v),            type(Type::Int)       { }
-            UserVariable(const float        v) : d64((double)v),    type(Type::Double)    { }
-            UserVariable(const glm::vec2&   v) : vec2(v),           type(Type::Vec2)      { }
-            UserVariable(const glm::vec3&   v) : vec3(v),           type(Type::Vec3)      { }
-            UserVariable(const std::string& s) : str(s),            type(Type::String)    { }
+            UserVariable(const uint32_t&     v) : u32(v), type(Type::Uint) { }
+            UserVariable(const int32_t&     v) : i32(v), type(Type::Int) { }
+            UserVariable(const float&       v) : d64((double)v), type(Type::Double) { }
+            UserVariable(const glm::vec2&   v) : vec2(v), type(Type::Vec2) { }
+            UserVariable(const glm::vec3&   v) : vec3(v), type(Type::Vec3) { }
+            UserVariable(const std::string& s) : str(s), type(Type::String) { }
         };
 
         using ModelInstance = ObjectInstance<Model>;
@@ -97,12 +100,12 @@ namespace Falcor
         */
         enum class LoadFlags
         {
-            None                =   0x0,
-            GenerateAreaLights  =   0x1,    ///< Create area light(s) for meshes that have emissive material
+            None = 0x0,
+            GenerateAreaLights = 0x1,    ///< Create area light(s) for meshes that have emissive material
         };
 
         static Scene::SharedPtr loadFromFile(const std::string& filename, Model::LoadFlags modelLoadFlags = Model::LoadFlags::None, Scene::LoadFlags sceneLoadFlags = LoadFlags::None);
-        static Scene::SharedPtr create();
+        static Scene::SharedPtr create(const std::string& filename = "");
 
         virtual ~Scene();
 
@@ -147,9 +150,9 @@ namespace Falcor
         // Object Paths
         uint32_t addPath(const ObjectPath::SharedPtr& pPath);
         void deletePath(uint32_t pathID);
-        
+
         const ObjectPath::SharedPtr& getPath(uint32_t pathID) const { return mpPaths[pathID]; }
-        uint32_t getPathCount() const { return (uint32_t)mpPaths.size();}
+        uint32_t getPathCount() const { return (uint32_t)mpPaths.size(); }
 
         // Camera
         uint32_t addCamera(const Camera::SharedPtr& pCamera);
@@ -171,7 +174,7 @@ namespace Falcor
         uint32_t getVersion() const { return mVersion; }
         void setVersion(uint32_t version) { mVersion = version; }
         void addUserVariable(const std::string& name, const UserVariable& var) { mUserVars[name] = var; }
-        
+
         // If the name is not found, returns an invalid var (Type == Unknown)
         const UserVariable& getUserVariable(const std::string& name) const;
         const UserVariable& getUserVariable(uint32_t varID, std::string& varName) const;
@@ -199,6 +202,11 @@ namespace Falcor
         const vec3& getCenter() { updateExtents(); return mCenter; }
         const float getRadius() { updateExtents(); return mRadius; }
 
+        /** Returns the scene bounding box.
+            \return Bounding box in scene units.
+        */
+        const BoundingBox& getBoundingBox() { updateExtents(); return mBoundingBox; }
+
         /**
             This routine creates area light(s) in the scene. All meshes that
             have emissive material are treated as area lights.
@@ -212,14 +220,34 @@ namespace Falcor
         /** Attach skinning cache to all models in scene.
         */
         void attachSkinningCacheToModels(SkinningCache::SharedPtr pSkinningCache);
+
+        /** Set an environment-map texture
+        */
+        void setEnvironmentMap(const Texture::SharedPtr& pMap) { mpEnvMap = pMap; }
+
+        /** Get the env-map texture
+        */
+        const Texture::SharedPtr& getEnvironmentMap() const { return mpEnvMap; }
+
+        /** Get the filename
+        */
+        const std::string& getFilename() const { return mFilename; }
+        
+        /** Set a new aspect ratio for all the cameras in the scene
+        */
+        void setCamerasAspectRatio(float ratio);
+
+        /** Render the scene's UI
+        */
+        void renderUI(Gui* pGui, const char* uiGroup = nullptr);
     protected:
 
-        Scene();
+        Scene(const std::string& filename = "");
         /**
             Update changed scene extents (radius and center).
         */
         void updateExtents();
-        
+
         static uint32_t sSceneCounter;
 
         uint32_t mId;
@@ -230,8 +258,10 @@ namespace Falcor
         std::vector<ObjectPath::SharedPtr> mpPaths;
         std::vector<LightProbe::SharedPtr> mpLightProbes;
         std::vector<AreaLight::SharedPtr> mpAreaLights;
+        Texture::SharedPtr mpEnvMap;
 
         uint32_t mActiveCameraID = 0;
+        uint32_t mSelectedPath = 0;
         float mCameraSpeed = 1;
         float mLightingScale = 1.0f;
         uint32_t mVersion = 1;
@@ -239,8 +269,11 @@ namespace Falcor
 
         float mRadius = -1.f;
         vec3 mCenter = vec3(0, 0, 0);
+        BoundingBox mBoundingBox;           ///< Scene bounding box in scene units.
 
         bool mExtentsDirty = true;
+
+        std::string mFilename;
 
         using string_uservar_map = std::map<const std::string, UserVariable>;
         string_uservar_map mUserVars;
@@ -248,4 +281,18 @@ namespace Falcor
     };
 
     enum_class_operators(Scene::LoadFlags);
+
+#define flag_str(a) case Scene::LoadFlags::a: return #a
+    inline std::string to_string(Scene::LoadFlags f)
+    {
+        switch (f)
+        {
+            flag_str(None);
+            flag_str(GenerateAreaLights);
+        default:
+            should_not_get_here();
+            return "";
+        }
+    }
+#undef flag_str
 }

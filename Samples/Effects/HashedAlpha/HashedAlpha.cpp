@@ -85,7 +85,7 @@ void HashedAlpha::loadModel(std::string filename)
 void HashedAlpha::loadModel()
 {
     std::string filename;
-    if (openFileDialog(Model::kSupportedFileFormatsStr, filename))
+    if (openFileDialog(Model::kFileExtensionFilters, filename))
     {
 		loadModel(filename);
     }
@@ -95,7 +95,7 @@ void HashedAlpha::updateProgram()
 {
     if (mDirty)
     {
-        mpProgram->clearDefines();
+        mpProgram->setDefines({});
 
         switch (mAlphaTestMode)
         {
@@ -112,7 +112,7 @@ void HashedAlpha::updateProgram()
     }
 }
 
-void HashedAlpha::onLoad(SampleCallbacks* pSample, RenderContext::SharedPtr pRenderContext)
+void HashedAlpha::onLoad(SampleCallbacks* pSample, RenderContext* pRenderContext)
 {
     mpProgram = GraphicsProgram::createFromFile("HashedAlpha.ps.hlsl", "", "main");
     mpVars = GraphicsVars::create(mpProgram->getReflector());
@@ -128,7 +128,7 @@ void HashedAlpha::onLoad(SampleCallbacks* pSample, RenderContext::SharedPtr pRen
     loadModel(skDefaultModel.c_str());
 }
 
-void HashedAlpha::onFrameRender(SampleCallbacks* pSample, RenderContext::SharedPtr pRenderContext, Fbo::SharedPtr pTargetFbo)
+void HashedAlpha::onFrameRender(SampleCallbacks* pSample, RenderContext* pRenderContext, const Fbo::SharedPtr& pTargetFbo)
 {
     const glm::vec4 clearColor(0.38f, 0.30f, 0.52f, 1);
     pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
@@ -140,7 +140,7 @@ void HashedAlpha::onFrameRender(SampleCallbacks* pSample, RenderContext::SharedP
         updateProgram();
         pRenderContext->setGraphicsState(mpState);
         pRenderContext->setGraphicsVars(mpVars);
-        ModelRenderer::render(pRenderContext.get(), mpModel, mpCamera.get());
+        ModelRenderer::render(pRenderContext, mpModel, mpCamera.get());
     }
 }
 

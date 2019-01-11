@@ -198,7 +198,6 @@ namespace Falcor
                 applyGraphicsVars();
             }
         }
-
         if (is_set(RenderContext::StateBindFlags::PipelineState, mBindFlags))
         {
             GraphicsStateObject::SharedPtr pGSO = mpGraphicsState->getGSO(mpGraphicsVars.get());
@@ -207,6 +206,13 @@ namespace Falcor
         if (is_set(RenderContext::StateBindFlags::Fbo, mBindFlags))
         {
             transitionFboResources(this, mpGraphicsState->getFbo().get());
+        }
+        if (is_set(StateBindFlags::SamplePositions, mBindFlags))
+        {
+            if (mpGraphicsState->getFbo() && mpGraphicsState->getFbo()->getSamplePositions().size())
+            {
+                logWarning("The Vulkan backend doesn't support programmable sample positions");
+            }
         }
         if (is_set(RenderContext::StateBindFlags::Viewports, mBindFlags))
         {
@@ -323,13 +329,13 @@ namespace Falcor
         mCommandsPending = true;
     }
 
-    void RenderContext::resolveResource(const Texture* pSrc, const Texture* pDst)
+    void RenderContext::resolveResource(const Texture::SharedPtr& pSrc, const Texture::SharedPtr& pDst)
     {
         // Just blit. It will work
         blit(pSrc->getSRV(), pDst->getRTV());
     }
 
-    void RenderContext::resolveSubresource(const Texture* pSrc, uint32_t srcSubresource, const Texture* pDst, uint32_t dstSubresource)
+    void RenderContext::resolveSubresource(const Texture::SharedPtr& pSrc, uint32_t srcSubresource, const Texture::SharedPtr& pDst, uint32_t dstSubresource)
     {
         uint32_t srcArray = pSrc->getSubresourceArraySlice(srcSubresource);
         uint32_t srcMip = pSrc->getSubresourceMipLevel(srcSubresource);

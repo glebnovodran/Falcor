@@ -30,6 +30,8 @@
 
 namespace Falcor
 {
+    class Texture;
+
     /** A class representing a memory bitmap
     */
     class Bitmap : public std::enable_shared_from_this<Bitmap>
@@ -75,6 +77,12 @@ namespace Falcor
         */
         static void saveImage(const std::string& filename, uint32_t width, uint32_t height, FileFormat fileFormat, ExportFlags exportFlags, ResourceFormat resourceFormat, bool isTopDown, void* pData);
 
+        /**  Open dialog to save image to a file
+            \param[in] pTexture Texture to save to file
+             
+        */
+        static void saveImageDialog(const std::shared_ptr<Texture>& pTexture);
+
         ~Bitmap();
 
         /** Get a pointer to the bitmap's data store
@@ -93,6 +101,10 @@ namespace Falcor
         */
         ResourceFormat getFormat() const { return mFormat; }
 
+        /** Get the file dialog filter vec for images.
+            \param[in] format If set to ResourceFormat::Unknown, will return all the supported image file formats. If set to something else, will only return file types which support this format.
+        */
+        static FileDialogFilterVec getFileDialogFilters(ResourceFormat format = ResourceFormat::Unknown);
     private:
         Bitmap() = default;
         uint8_t* mpData = nullptr;

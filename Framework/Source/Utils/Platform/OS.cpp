@@ -35,16 +35,16 @@ namespace fs = std::experimental::filesystem;
 namespace Falcor
 {
     template<bool bOpen>
-    bool fileDialogCommon(const char* pFilters, std::string& filename);
+    bool fileDialogCommon(const FileDialogFilterVec& filters, std::string& filename);
 
-    bool openFileDialog(const char* pFilters, std::string& filename)
+    bool openFileDialog(const FileDialogFilterVec& filters, std::string& filename)
     {
-        return fileDialogCommon<true>(pFilters, filename);
+        return fileDialogCommon<true>(filters, filename);
     }
 
-    bool saveFileDialog(const char* pFilters, std::string& filename)
+    bool saveFileDialog(const FileDialogFilterVec& filters, std::string& filename)
     {
-        return fileDialogCommon<false>(pFilters, filename);
+        return fileDialogCommon<false>(filters, filename);
     }
 
     uint32_t getLowerPowerOf2(uint32_t a)
@@ -81,6 +81,16 @@ namespace Falcor
         if (std::find(gDataDirectories.begin(), gDataDirectories.end(), dataDir) == gDataDirectories.end())
         {
             gDataDirectories.push_back(dataDir);
+        }
+    }
+
+    void removeDataDirectory(const std::string& dataDir)
+    {
+        //Insert unique elements
+        auto it = std::find(gDataDirectories.begin(), gDataDirectories.end(), dataDir);
+        if (it != gDataDirectories.end())
+        {
+            gDataDirectories.erase(it);
         }
     }
 
@@ -177,25 +187,31 @@ namespace Falcor
         }
     }
 
-    bool readFileToString(const std::string& fullpath, std::string& str)
-    {
-        std::ifstream t(fullpath.c_str());
-        if ((t.rdstate() & std::ifstream::failbit) == 0)
-        {
-            str = std::string((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
-            return true;
-        }
-        return false;
-    }
-    
     std::string getDirectoryFromFile(const std::string& filename)
     {
         fs::path path = filename;
         return path.has_filename() ? path.parent_path().string() : filename;
     }
 
+    std::string getExtensionFromFile(const std::string& filename)
+    {
+        fs::path path = filename;
+        return path.has_extension() ? path.extension().string() : "";
+    }
+
     std::string getFilenameFromPath(const std::string& filename)
     {
         return fs::path(filename).filename().string();
+    }
+
+    std::string readFile(const std::string& filename)
+    {
+        std::ifstream filestream(filename);
+        std::string str;
+        filestream.seekg(0, std::ios::end);
+        str.reserve(filestream.tellg());
+        filestream.seekg(0, std::ios::beg);
+        str.assign(std::istreambuf_iterator<char>(filestream), std::istreambuf_iterator<char>());
+        return str;
     }
 }

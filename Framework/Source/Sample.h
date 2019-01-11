@@ -26,7 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
 #pragma once
-#include "glm/glm.hpp"
 #include <set>
 #include <string>
 #include <stdint.h>
@@ -90,7 +89,7 @@ namespace Falcor
         /************************************************************************/
         /* Callback inherited from SampleCallbacks                                 */
         /************************************************************************/
-        RenderContext::SharedPtr getRenderContext() override { return mpRenderContext; }
+        RenderContext* getRenderContext() override { return gpDevice ? gpDevice->getRenderContext() : nullptr; }
         Fbo::SharedPtr getCurrentFbo() override { return mpTargetFBO; }
         Window* getWindow() override { return mpWindow.get(); }
         Gui* getGui() override { return mpGui.get(); }
@@ -98,12 +97,13 @@ namespace Falcor
         void resizeSwapChain(uint32_t width, uint32_t height) override;
         bool isKeyPressed(const KeyboardEvent::Key& key) override;
         float getFrameRate() override { return mFrameRate.getAverageFrameTime(); }
-        float getLastFrameTime() override { return mFrameRate.getLastFrameTime();  }
+        float getLastFrameTime() override { return mFrameRate.getLastFrameTime(); }
         uint64_t getFrameID() override { return mFrameRate.getFrameCount(); }
         void renderText(const std::string& str, const glm::vec2& position, glm::vec2 shadowOffset = vec2(1)) override;
         std::string getFpsMsg() override;
         void toggleText(bool showText) override { mShowText = showText && gpDevice; }
-        void toggleUI(bool showUI) override { mShowUI = showUI && gpDevice; }
+        void toggleUI(bool showUI) override { if (!gpDevice || showUI) mShowUI = UIStatus::HideAll; else mShowUI = UIStatus::ShowAll; }
+        void toggleGlobalUI(bool showGlobalUI) override { if (!gpDevice || !showGlobalUI) mShowUI = UIStatus::HideGlobal; else mShowUI = UIStatus::ShowAll; }
         void setDefaultGuiSize(uint32_t width, uint32_t height) override;
         void setDefaultGuiPosition(uint32_t x, uint32_t y) override;
         void setCurrentTime(float time) override { mCurrentTime = time; }
@@ -112,6 +112,7 @@ namespace Falcor
         float getFixedTimeDelta() override  { return mFixedTimeDelta; }
         void freezeTime(bool timeFrozen) override { mFreezeTime = timeFrozen; }
         bool isTimeFrozen() override { return mFreezeTime; }
+        bool shouldResetRendering() override { return mShouldResetRendering; }
         std::string captureScreen(const std::string explicitFilename = "", const std::string explicitOutputDirectory = "") override;
         void shutdown() override { if (mpWindow) { mpWindow->shutdown(); } }
         
@@ -126,7 +127,6 @@ namespace Falcor
         /** Internal data structures
         */
         Gui::UniquePtr mpGui;                               ///< Main sample GUI
-        RenderContext::SharedPtr mpRenderContext;           ///< The rendering context
         GraphicsState::SharedPtr mpDefaultPipelineState;    ///< The default pipeline 
         Fbo::SharedPtr mpTargetFBO;                         ///< The FBO available to renderers
         bool mFreezeTime;                                   ///< Whether global time is frozen
@@ -146,7 +146,6 @@ namespace Falcor
 
         // Private functions
         void initUI();
-        void printProfileData();
         void calculateTime();
 
         void startVideoCapture();
@@ -159,7 +158,13 @@ namespace Falcor
 
         bool mVsyncOn = false;
         bool mShowText = true;
-        bool mShowUI = true;
+        enum class UIStatus
+        {
+            HideAll = 0,
+            HideGlobal,
+            ShowAll
+        };
+        UIStatus mShowUI = UIStatus::ShowAll;
         bool mCaptureScreen = false;
 
         Renderer::UniquePtr mpRenderer;
@@ -170,9 +175,11 @@ namespace Falcor
             VideoEncoder::UniquePtr pVideoCapture;
             uint8_t* pFrame = nullptr;
             float sampleTimeDelta; // Saves the sample's fixed time delta because video capture overwrites it while recording
+            bool displayUI = false;
         };
 
         VideoCaptureData mVideoCapture;
+        bool mShouldResetRendering = false;     ///< Flag to indicate if app should reset temporally accumulated data at start of video capture (UI option).
 
         FrameRate mFrameRate;
         
@@ -189,7 +196,6 @@ namespace Falcor
         Sample(Renderer::UniquePtr& pRenderer) : mpRenderer(std::move(pRenderer)) {}
         Sample(const Sample&) = delete;
         Sample& operator=(const Sample&) = delete;
-        Fbo::SharedPtr mpBackBufferFBO;     ///< The FBO for the back buffer
         //Testing
         SampleTest::UniquePtr mpSampleTest = nullptr;
     };
