@@ -112,7 +112,7 @@ COMMON_FLAGS=-c -Wall -Werror -std=c++17 -m64 $(DISABLED_WARNINGS)
 # Defines
 DEBUG_DEFINES:=-D "_DEBUG"
 RELEASE_DEFINES:=
-COMMON_DEFINES:=-D "FALCOR_VK" -D "GLM_FORCE_DEPTH_ZERO_TO_ONE" -D "_PROJECT_DIR_=\"Framework/Source\""
+COMMON_DEFINES:=-D "FALCOR_VK" -D "GLM_FORCE_DEPTH_ZERO_TO_ONE" -D "_PROJECT_DIR_=\"Framework/Source\"" $(TESTS)
 
 # Base source directory
 SOURCE_DIR:=Framework/Source/

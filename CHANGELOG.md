@@ -1,3 +1,15 @@
+WIP
+----
+- Added `Fbo::create()` which creates a new objects given a list of textures
+- Added `RenderContext::clearTexture()` which uses the bind-flag to determin which clear function to call
+- Added `Resource::BindFlags::AllColorViews` and `Resource::BindFlags::AllDepthViews`
+- `Ctrl+Pause` freezes/unfreezes the renderer. This if useful in low framerates situations when the user wants to change an attribute using the GUI
+- Added `ComputeContext::dispatchProgram()` - a convenience function to dispatch a compute program without altering the state of context.
+- Integration with WinPixEvent
+- Refactored `ProgramVars::operator[]` to also work with resources
+- New build rule for hlsl and slang files, which will copy them to the `Data` directory while preserving the directory structure
+- Packman fetches into Externals/.packman
+
 v3.2
 ------
 - Introduced concept of Experimental Features. These features are not included by default in "Falcor.h" and are instead part of a new "FalcorExperimental.h" header. DXR is considered an experimental feature.
